@@ -11,3 +11,12 @@ This class contains some utilities to manipulate and organize the POIs in the ou
 - cleanFile() removes POIs without textual description
 - divideSubCategoriasPerta(int quantidadeObjetos) creates files containing POIs of the same sub-category (information in the second parentheses). This method creates files only for subcategories that contain at least *quantidadeObjetos* number of POIs
 - removeCategoriadoTotal(String objetoInteresse) removes all POIs of the specified *objetoInteresse* category
+
+## Authors
+This code was inittialy created inside the PerTA (Personal Travel Assistant) project: http://sites.ecomp.uefs.br/perta/. These authors contributed with the code:
+
+- Thiago Sampaio Lima: http://lattes.cnpq.br/6103257120721546
+- Fellipe de Lima Fonseca: http://lattes.cnpq.br/6180854801583203
+- João Paulo Dias de Almeida: http://lattes.cnpq.br/3029122677763319 
+- João B. Rocha-Junior: https://sites.google.com/a/ecomp.uefs.br/joao/home
+
