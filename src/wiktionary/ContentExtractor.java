@@ -1,0 +1,553 @@
+package wiktionary;
+
+/**
+ *
+ * @author fellipe
+ */
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+import org.xml.sax.*;
+import org.xml.sax.helpers.DefaultHandler;
+import util.Util;
+import util.Writer;
+
+/**
+ * This classe makes a parser in the pages of wiktionary. The goal this parser
+ * is extract the words. Extracted are also synonyms of nouns.
+ *
+ * @author fellipe
+ */
+public class ContentExtractor extends DefaultHandler {
+
+    private StringBuffer textBuffer = null;
+    private File termos;
+    private File synonymousFile;
+    private File synonymousFinalFile;
+    private File nouns;
+    private File adverbFile;
+    private File adjectiveFile;
+    private File verbFile;
+    private File unconjugatedVerbFile;
+    private File oneGenero;
+    private File pronoun;
+    private File variacoesFile;
+    private HashMap<String, String> conjugation;
+    private boolean isText;
+    private boolean isTitle;
+    private boolean first;
+    private StringBuilder text;
+    private StringBuilder title;
+    private String[] categories = {"Substantivo(Português)", "Adjetivo(Português)",
+        "Numeralordinal(Português)", "Numeralcardinal(Português)", "Verbo(Português)",
+        "Advérbio(Português)", "Pronome(Português)"};
+
+    public ContentExtractor() {
+
+        termos = new File("termos.txt");
+        synonymousFile = new File("sinonimos.txt");
+        synonymousFinalFile = new File("sinonimosfinal.txt");
+        oneGenero = new File("um_genero.txt");
+        pronoun = new File("pronomes.txt");
+        nouns = new File("substantivos.txt");
+        variacoesFile = new File("variações.txt");
+        adverbFile = new File("advérbios.txt");
+        adjectiveFile = new File("adjetivos.txt");
+        verbFile = new File("verbos.txt");
+        unconjugatedVerbFile = new File("verbos_não_conjugados.txt");
+        conjugation = new HashMap<>();
+        text = new StringBuilder();
+        title = new StringBuilder();
+        //  categorie = new StringBuilder();
+        first = true;
+    }
+
+    public ContentExtractor(File diretorio) {
+        termos = new File(diretorio, "termos.txt");
+        synonymousFile = new File(diretorio, "sinonimos.txt");
+        synonymousFinalFile = new File(diretorio, "sinonimosfinal.txt");
+        oneGenero = new File(diretorio, "um_genero.txt");
+        pronoun = new File(diretorio, "pronomes.txt");
+        nouns = new File(diretorio, "substantivos.txt");
+        adverbFile = new File(diretorio, "advérbios.txt");
+        variacoesFile = new File(diretorio, "variações.txt");
+        adjectiveFile = new File(diretorio, "adjetivos.txt");
+        verbFile = new File(diretorio, "verbos.txt");
+        unconjugatedVerbFile = new File(diretorio, "verbos_não_conjugados.txt");
+        conjugation = new HashMap<>();
+        text = new StringBuilder();
+        title = new StringBuilder();
+        //categorie = new StringBuilder();
+        first = true;
+    }
+
+    @Override
+    public void startDocument() throws SAXException {
+        System.out.println("startDocument");
+    }
+
+    @Override
+    public void startElement(String namespaceURI, String sName, String qName, Attributes attrs) throws SAXException {
+
+        if (eName(sName, qName).equals("title")) {
+            isTitle = true;
+
+        } else if (eName(sName, qName).equals("text")) {
+            isText = true;
+        } else {
+            isTitle = false;
+            isText = false;
+        }
+    }
+
+    @Override
+    public void characters(char buf[], int offset, int len) throws SAXException {
+        if (textBuffer == null) {
+            textBuffer = new StringBuffer();
+        }
+        if (isText) {
+            textBuffer.append(buf, offset, len);
+        } else if (isTitle) {
+            textBuffer.append(buf, offset, len);
+            title.append(textBuffer.toString());
+
+        }
+    }
+
+    @Override
+    public void endElement(String namespaceURI, String sName, String qName) throws SAXException {
+
+        text.append(textBuffer.toString().trim());
+
+        if (eName(sName, qName).equals("page")) {
+            if (first) {
+
+                if (title.toString().contains("Predefini��o:conj.pt.")) {
+                    String value = findConjugation(text.toString().replaceAll("\n", ""));
+                    String key = title.toString().substring(title.indexOf(".pt.") + 4);
+                    conjugation.put(key, value);
+                }
+            } else {
+                try {
+                    //categorie.append(findCategorie(text).replaceAll(" ", ""));
+
+                    if (findCategorie(text, categories[4])) { //verb.
+
+                        String[] conj = conjugation(text.toString());
+                        //Pedaço da palavra a ser conjugada, e chave da conjuga��o.                
+                        Writer.writeFile(unconjugatedVerbFile, title.toString());
+
+                        if (!conj[0].equals("") || !conj[1].equals("")) {
+                            conjugate(conj[0], conj[1]);
+                        }
+                    }
+                    if (findCategorie(text, categories[0])) {//Noun.
+                        String synonymous = findSynonymous(text.toString());
+
+                        String topic = topicText(text.toString().toLowerCase(), "==No Wikcion�rio==".toLowerCase());
+                        if (!"".equals(topic)) {
+                            synonymous += findSynonymous2(topic, "[[", "]]", true);
+                            synonymous += findSynonymous2(topic, "{{", "}}", false);
+
+                        }
+                        String synonymousFinal = null;
+                        topic = this.topicText(text.toString().toLowerCase(), "==Sin�nimo".toLowerCase());
+                        if (!"".equals(topic)) {
+                            synonymousFinal = findSynonymous2(topic, "[[", "]]", true);
+                            synonymous += findSynonymous2(topic, "{{", "}}", false);
+                            if (!synonymousFinal.equals("|")) {
+
+                                Writer.writeFile(synonymousFinalFile, title.toString(), synonymousFinal);
+
+                            }
+                        }
+
+                        Writer.writeFile(termos, title.toString(), categories[0]);
+                        Writer.writeFile(nouns, title.toString());
+
+                        if (synonymous != null && !"".equals(synonymous) && synonymousFinal != null) {
+                            Writer.writeFile(synonymousFile, title.toString(), synonymous + synonymousFinal);
+                        }
+                        if (synonymous != null && !"".equals(synonymous)) {
+                            Writer.writeFile(synonymousFile, title.toString(), synonymous);
+                        }
+                        if (oneGenero(topicText(text.toString(), "==Substantivo=="))) {
+                            Writer.writeFile(oneGenero, title.toString(), "");
+                        }
+                    }
+                    if (findCategorie(text, categories[5])) { //adverb
+                        Writer.writeFile(adverbFile, title.toString());
+                    }
+                    if ((findCategorie(text, categories[1]))) {
+                        Writer.writeFile(adjectiveFile, title.toString());
+                    }
+                    if (findCategorie(text, categories[6])) {
+                        Writer.writeFile(pronoun, title.toString());
+                    }
+                    if (isCategorie(text.toString())) {
+                        String topic = topicText(text.toString().toLowerCase(), "=={{-varort-}}==");
+                        if (!"".equals(topic)) {
+                            String ortografia = findSynonymous2(topic, "[[", "]]", true);
+                            if (!ortografia.equals("|")) {
+                                Writer.writeFile(variacoesFile, title.toString(), ortografia);
+                            }
+
+
+                        }
+                    }
+                } catch (FileNotFoundException ex) {
+                    Logger.getLogger(ContentExtractor.class.getName()).log(Level.SEVERE, null, ex);
+                } catch (IOException ex) {
+                    Logger.getLogger(ContentExtractor.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+
+            //categorie.delete(0, categorie.length());
+            text.delete(0, text.length());
+            title.delete(0, title.length());
+        }
+        isTitle = false;
+        isText = false;
+        textBuffer = null;
+    }
+
+    private String eName(String sName, String qName) {
+        return "".equals(sName) ? qName : sName;
+    }
+
+    @Override
+    public void endDocument() throws SAXException {
+        System.out.println("endDocument");
+        first = false;
+    }
+
+    /**
+     * This method search by category of the word.
+     *
+     * @param text page of the wiktionary.
+     * @return the category.
+     */
+    public boolean findCategorie(StringBuilder text, String categorie) {
+        int x = 0, y = 0;
+        if (text.toString().replaceAll(" ", "").contains("[[Categoria:" + categorie)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * This method search the conjugate form of the verb.
+     *
+     * @param text page of the conjugations
+     * @return verb conjugates separate for '|'.
+     */
+    public String findConjugation(String text) {
+        int x = 0, y;
+        String aux = "";
+        //Há mais de uma maneira que aparece as conjugações.
+        if (text.contains("{{link opcional|") && !text.contains("{{link opcional|{")) {
+
+            while (text.indexOf("{{link opcional|", x) != -1) {
+                y = text.indexOf("{{link opcional|", x);
+                x = text.indexOf("|", y);
+                y = text.indexOf("}", x);
+                aux += text.substring(x, y);
+            }
+            if (aux.startsWith("|")) {
+                aux = aux.substring(1);
+            }
+        } else {
+            boolean segue;
+            while (text.indexOf("{{{", x) != -1) {
+                y = text.indexOf("{{{", x);
+                x = text.indexOf("}", y) + 3;
+                segue = true;
+                if (x - y > 10) {
+                    segue = false;
+                }
+                if (text.indexOf("{", x) != -1 && text.indexOf("{", x) < text.indexOf("}", x)) {
+                    y = text.indexOf("{", x);
+                } else {
+                    if (text.indexOf("}", x) != -1) {
+                        y = text.indexOf("}", x);
+                    } else {
+                        return aux;
+                    }
+                }
+                if (segue) {
+                    String s = text.substring(x, y);
+                    if (!s.contains("|")) {
+                        s += "|";
+                    }
+                    s = s.substring(0, s.indexOf("|") + 1);
+                    aux += s;
+                }
+            }
+        }
+        if (aux.contains("}}")) {
+            aux = aux.replaceAll("}}", "");
+        }
+        if (aux.contains("]]")) {
+            aux = aux.replaceAll("]]", "");
+        }
+        if (aux.endsWith("|")) {
+            aux = aux.substring(0, aux.lastIndexOf("|"));
+        }
+        aux = aux.replaceAll(" ", "");
+        return aux;
+    }
+
+    /**
+     * This method search the conjugation of the verb.
+     *
+     * @param text page of the verb.
+     * @return word and the conjugation.
+     */
+    public String[] conjugation(String text) {
+        String[] aux = {"", ""};
+        int x, y;
+        if (text.contains("==Conjuga��o==")) {
+            x = text.indexOf("==Conjuga��o==");
+            if (text.indexOf("{{", x) - x > 30) {
+                return aux;
+            }
+            y = text.indexOf("{{", x);
+            if (text.indexOf("pt", y) == -1 || text.indexOf("pt", y) - y > 30) {
+                return aux;
+            }
+            x = text.indexOf("pt", y) + 3;
+            if (text.indexOf("|", x) != -1 && text.indexOf("|", x) < text.indexOf("}}", x)) {
+                y = text.indexOf("|", x);
+                aux[0] = text.substring(x, y);
+                x = y + 1;
+
+                if (text.indexOf("}}", x) != -1) {
+                    if (text.indexOf("|", x) != -1 && text.indexOf("|", x) < text.indexOf("}}", x)) {
+                        aux[1] = "";
+                    } else {
+                        aux[1] = text.substring(x, text.indexOf("}}", x));
+                    }
+                }
+            } else {
+                if (text.indexOf("}}", x) != -1) {
+                    aux[0] = text.substring(x, text.indexOf("}}", x));
+
+                }
+            }
+        }
+        return aux;
+    }
+
+    /**
+     * This method conjugates a verb.
+     *
+     * @param string word.
+     * @param string0 conjugation.
+     * @throws SAXException
+     */
+    public void conjugate(String string, String string0) throws SAXException, FileNotFoundException, IOException {
+        ArrayList<String> temp = new ArrayList<>();
+        int x = 0, y = 0;
+        String key = "";
+        String conj = "";
+        //As vezes fica com ordem trocada.
+        if (conjugation.containsKey(string)) {
+            key = string;
+            conj = string0;
+        } else if (conjugation.containsKey(string0)) {
+            key = string0;
+            conj = string;
+        } else {
+            return;
+        }
+        //seeking in hash
+        String aux = conjugation.get(key);
+        String s;
+        while (aux.indexOf("|", x) != -1) {
+            y = aux.indexOf("|", x);
+            s = aux.substring(x, y);
+
+            if (!s.equals("") && !temp.contains(s) && !title.toString().equals(conj + s)) {
+                temp.add(s);
+                Writer.writeFile(termos, conj + s, categories[4]);
+                Writer.writeFile(verbFile, conj + s);
+            }
+            x = y + 1;
+        }
+        s = aux.substring(x, aux.length());
+        if (!aux.substring(x, aux.length()).equals("") && !temp.contains(s)) {
+            temp.add(s);
+            Writer.writeFile(termos, conj + s, categories[4]);
+        }
+    }
+
+    /**
+     * Search the synonymous of the noun.
+     *
+     * @param page page of the noun.
+     * @return synonymous separate for '|'.
+     */
+    public String findSynonymous(String page) {
+        String text = page;
+
+        int x = 0, y = 0;
+        text = topicText(text.toLowerCase(), "==Substantivo==".toLowerCase());
+        if (text != null && text.indexOf("#", x) != -1) {
+            y = text.indexOf("#", x);
+            text = text.substring(y, text.length());
+
+        } else {
+            return null;
+        }
+
+
+        return findSynonymous2(text, "[[", "]]", true);
+    }
+
+    public String findSynonymous2(String page, String t1, String t2, boolean b) {
+        String text = page;
+        String synonymous = "|";
+        boolean ok = b;
+        int x = 0, y = 0;
+
+        while (text.indexOf(t1, y) != -1 && text.indexOf(t2, y) != -1) {
+            x = text.indexOf(t1, y) + 2;
+            y = text.indexOf(t2, x);
+            ok = b;
+            if (y < x || y == x) {
+                return null;
+            }
+            String aux = text.substring(x, y);
+            if (aux.contains("|")) {
+                int a = aux.indexOf("|") + 1;
+                aux = aux.substring(a, aux.length());
+                ok = true;
+            }
+            if (aux.contains("/")) {
+                aux = aux.substring(0, aux.indexOf("/"));
+            }
+            if (aux.contains(":")) {
+                ok = false;
+            }
+            if (ok) {
+                if (!aux.equals("") && !aux.equals(title.toString())) {
+                    synonymous += aux + "|";
+                }
+                ok = b;
+            }
+        }
+        return synonymous;
+    }
+
+    /**
+     * This metodo informs if the category of the word is in the desirable
+     * category list.
+     *
+     * @param categorie category of the word.
+     * @return true, if the category is in the list, and false if not.
+     */
+    public boolean isCategorie(String text) {
+
+        for (String x : categories) {
+            if (text.toString().replaceAll(" ", "").contains("[[Categoria:" + x)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The method search the description of the noun.
+     *
+     * @param text page of the noun.
+     * @return section with the description of the noun.
+     */
+    public String topicText(String text, String find) {
+        int x = 0;
+        text = text.replaceAll("= ", "=");
+        text = text.replaceAll(" =", "=");
+        if (text.indexOf(find) != -1) {
+
+            x = text.indexOf(find, x);
+            x = text.indexOf("==", x + 2) + 2;
+            if ((text.indexOf("[[categoria:", x) == -1 && text.indexOf("==", x) != -1)
+                    || (text.indexOf("[[categoria:", x) != -1 && text.indexOf("==", x) != -1
+                    && text.indexOf("==", x) < text.indexOf("[[categoria:", x))) {
+
+                text = text.substring(x, text.indexOf("==", x));
+            } else {
+                if (text.indexOf("[[categoria:", x) != -1) {
+                    text = text.substring(x, text.indexOf("[[categoria:", x));
+                }
+            }
+        } else {
+            return "";
+        }
+        return text;
+    }
+
+    /**
+     * This method informs if the noun contains only one genus.
+     *
+     * @param text page of the noun.
+     * @return true, if the noun contains only one genus, and false if not.
+     */
+    public boolean oneGenero(String text) {
+        int x = 0, y = 0;
+        String aux = "";
+        if (text == null) {
+            return false;
+        }
+        if (text.indexOf("{flex.pt", y) != -1) {
+            x = text.indexOf("{flex.pt", y);
+            y = text.indexOf("}}", x);
+            aux = text.substring(x, y);
+        } else {
+            return false;
+        }
+        if ((aux.toLowerCase().contains("pt.fem") || aux.toLowerCase().contains("subst.feminino"))
+                || (aux.toLowerCase().contains("fs=") && !aux.toLowerCase().contains("ms="))) {
+            return true;
+        } else if ((aux.toLowerCase().contains("pt.masc") || aux.toLowerCase().contains("subst.masculino"))
+                || (aux.toLowerCase().contains("ms=") && !aux.toLowerCase().contains("fs="))) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        File diretorio = null;
+        DefaultHandler handler;
+        try {
+            diretorio = new File(args[1]);
+            handler = new ContentExtractor(diretorio);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            handler = new ContentExtractor();
+        }
+
+        SAXParserFactory factory = SAXParserFactory.newInstance();
+
+        SAXParser saxParser = factory.newSAXParser();
+
+        long beginning = System.currentTimeMillis();
+        if (args[0].endsWith(".xml")) {
+            saxParser.parse(args[0], handler);
+            saxParser.parse(args[0], handler);
+        } else {
+            throw new RuntimeException("File '" + args[0] + "' format not supported!");
+        }
+        System.out.println("Time spend: " + Util.time(System.currentTimeMillis() - beginning));
+    }
+}

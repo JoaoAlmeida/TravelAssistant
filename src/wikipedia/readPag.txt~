@@ -1,0 +1,16 @@
+private 	URL url = new URL( url );
+
+public synchronized String getContent() throws Exception{
+		URLConnection urlConnection = url.openConnection();
+        InputStream link = urlConnection.getInputStream();
+        int c;
+        String result="";
+        while((c = link.read())!=-1)
+        	result+= (char)c;
+        
+        if(urlConnection instanceof HttpURLConnection)
+        	((HttpURLConnection)urlConnection).disconnect();
+        else link.close();
+        
+        return result;
+	}

@@ -1,0 +1,169 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package wikipedia;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Scanner;
+import org.xml.sax.SAXException;
+import util.Writer;
+
+/**
+ *
+ * @author fellipe
+ */
+public class Osm {
+
+    private File osmFile;
+    private File addrFile;
+    public Osm() {
+        osmFile = new File("Brasil/object.txt");
+        addrFile = new File("merge_osm/addr.txt");
+    }
+
+    public static void main(String[] args) throws SAXException, FileNotFoundException, IOException{
+        Osm osm = new Osm();
+        osm.readFile();
+    }
+    
+    public String searchId(String line) {
+        int x = 0;
+        int y = 0;
+        x = line.indexOf(" ") + 1;
+        y = line.indexOf(" ", x);
+        return line.substring(x, y);
+    }
+
+    public String searchName(String line) {
+        if (line.indexOf("|name") != -1) {
+            int x = line.indexOf("|name");
+            int y = line.indexOf("=", x) + 1;
+            if (line.indexOf("|", y) != -1) {
+                return line.substring(y, line.indexOf("|", y));
+
+            } else {
+                return line.substring(y, line.length());
+            }
+        }
+        return null;
+    }
+
+    public String searchBairro(String line) {
+        if (line.toLowerCase().indexOf("|ipp:bairro") != -1) {
+            int x = line.toLowerCase().indexOf("|ipp:bairro");
+            x = line.indexOf("=", x) + 1;
+            if (line.indexOf("|", x) != -1) {
+                return line.substring(x, line.indexOf("|", x));
+
+            } else {
+                return line.substring(x, line.length());
+            }
+        }
+        return null;
+    }
+
+    public String searchStreet(String line) {
+        String street = null;
+        if (line.toLowerCase().indexOf("|ipp:endereco") != -1) {
+            int x = line.toLowerCase().indexOf("|ipp:endereco");
+            x = line.indexOf("=", x) + 1;
+            if (line.indexOf("|", x) != -1) {
+                street = line.substring(x, line.indexOf("|", x));
+
+            } else {
+                street = line.substring(x, line.length());
+            }
+        } else if (line.toLowerCase().indexOf("|addr:street") != -1) {
+            int x = line.toLowerCase().indexOf("|addr:street");
+            x = line.indexOf("=", x) + 1;
+            if (line.indexOf("|", x) != -1) {
+                street = line.substring(x, line.indexOf("|", x));
+            } else {
+                street = line.substring(x, line.length());
+            }
+
+            if (street != null && line.toLowerCase().indexOf("|addr:housenumber") != -1) {
+                x = line.toLowerCase().indexOf("|addr:housenumber");
+                x = line.indexOf("=", x) + 1;
+                if (line.indexOf("|", x) != -1) {
+                    street += ", " + line.substring(x, line.indexOf("|", x));
+                } else {
+                    street += ", " + line.substring(x, line.length());
+                }
+            }
+        }
+        
+        return street;
+    }
+
+    /**
+     * Cria arquivo com endereço do local;
+     * @throws SAXException
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    public void readFile() throws SAXException, FileNotFoundException, IOException{
+        Scanner input = new Scanner(osmFile, "ISO-8859-1");
+
+        while (input.hasNext()) {
+            String line = input.nextLine();
+            String adress = findAdress(line);
+            if(!adress.equals("")){
+                Writer.writeFile(addrFile, searchId(line), adress);
+            }
+        }
+        input.close();
+    }
+    
+    public void findAmenity() throws FileNotFoundException, SAXException, IOException{
+        Scanner input = new Scanner(new File("Brasil/object.txt"), "ISO-8859-1");;
+        File amenity = new File("merge_osm/amenity.txt");
+        while (input.hasNext()) {
+            String[] aux = separateOsmAmenity(input.nextLine());
+            if(aux!=null){
+                Writer.writeFile(amenity, aux[0], aux[1]);
+            }
+        }
+        
+    }
+    
+    public String[] separateOsmAmenity(String line) {
+        String aux[] = {"", ""};
+        int x = 0, y = 0; 
+        x = line.indexOf(" ") + 1;
+        y = line.indexOf(" ", x);
+        aux[0] = line.substring(x, y);
+        if (line.indexOf("|amenity") != -1) {
+            x = line.indexOf("|amenity");
+            y = line.indexOf("=", x) + 1;
+            if (line.indexOf("|", y) != -1) {
+                aux[1] = line.substring(y, line.indexOf("|", y));
+                return aux;
+            } else {
+                aux[1] = line.substring(y, line.length());
+                return aux;
+            }
+        }
+        return null;
+       
+    }
+    
+    public String findAdress(String line) {
+        String adress = "";
+        String street = null;
+        String bairro = null;
+        street = searchStreet(line);
+        if(street != null){
+            adress += street;
+        }
+        bairro = searchBairro(line);
+        if(bairro != null){
+            adress += ", " + bairro;
+        }        
+        return adress;
+    }
+   
+}
