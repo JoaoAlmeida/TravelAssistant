@@ -317,7 +317,7 @@ public class OpenStreetMapObjectHandler extends DefaultHandler {
      * @param args
      */
     public static void main(String[] args) throws Exception {
-        args = new String[]{"NewYork.osm"};
+        args = new String[]{"San Francisco.osm"};
 
         String[] ignoreNodes = new String[]{"way", "highway", "multipolygon",
             "route", "barrier"};

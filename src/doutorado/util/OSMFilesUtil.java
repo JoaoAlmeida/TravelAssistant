@@ -162,7 +162,7 @@ public class OSMFilesUtil {
 
         while (line != null) {
 
-            String[] teste = line.split(" ");
+            String[] teste = line.split("\t");
 
             //apenas as linhas que possuem categoria
             if (!teste[3].equals("-")) {
@@ -267,9 +267,9 @@ public class OSMFilesUtil {
     public static void main(String[] args) throws FileNotFoundException, IOException {
 
         //File which categories will be extracted
-        OSMFilesUtil category = new OSMFilesUtil("New York.txt");
-//        OSMFilesUtil.cleanFile("New York.txt");
-        category.divideSubCategoriasPerta(5);
+        OSMFilesUtil category = new OSMFilesUtil("San Francisco.txt");
+        OSMFilesUtil.cleanFile("hotel.txt");
+//        category.divideSubCategoriasPerta(5);
 
 //        category.removeCategoriadoTotal("hotel");       
     }

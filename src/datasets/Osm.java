@@ -24,7 +24,7 @@ public class Osm {
 
     public Osm() {
         osmFile = new File("OSMParsing/object.txt");
-        addrFile = new File("New York.txt");
+        addrFile = new File("San Francisco.txt");
     }
 
     public static void main(String[] args) throws SAXException, FileNotFoundException, IOException {
@@ -157,13 +157,13 @@ public class Osm {
             String[] coords = searchCoord(line);
 
             if (name != null) {
-                Writer.writeFile(addrFile, id + " " + coords[0] + " " + coords[1] + " " + category, name);
+                Writer.writeFile(addrFile, id + "\t" + coords[0] + "\t" + coords[1] + "\t" + category + "\t" + name);
                 id++;
             }
             //Acrescentado por mim para acrescentar ao arquivo final objetos que não possuem o campo "name"
             else if (!category.equals("-")){
                 System.out.println(category);
-                Writer.writeFile(addrFile, id + " " + coords[0] + " " + coords[1] + " " + category);
+                Writer.writeFile(addrFile, id + "\t" + coords[0] + "\t" + coords[1] + "\t" + category);
                 id++;
             }
         }

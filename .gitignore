@@ -13,6 +13,10 @@
 # Package Files #
 *.jar
 !Util.jar
+!jdbm.jar
+!json-simple-1.1.1.jar
+!Stemmer.jar
+!XXL.jar
 *.war
 *.nar
 *.ear
